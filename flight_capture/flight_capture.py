@@ -5,6 +5,7 @@ import sys
 import time # time.sleep() for settling loop
 import zwoasi as asi # camera wrapper
 import numpy as np
+from astropy.io import fits
 
 # variable definitions
 cadence = 15 # in seconds
@@ -14,6 +15,8 @@ exposure = 100000 # starting guess
 exp_min = 1000 # minimum allowed (1 ms)
 exp_max = 10000000 # maximum allowed (10 s) may be lowered
 gain = 0 # for low light spectra, can change
+
+# TO DO : Figure out what happens to the time when you disconnect wifi, power cycle, and reconnect wifi and figure out a solution
 
 # gathering file names
 env_filename = os.path.expanduser('~/zwo/libASICamera2.so') # Need to figure out how to download ZWO_ASI_LIB 
@@ -120,28 +123,43 @@ def save_frame(frame, exposure, gain, save_directory, log_path):
     timestamp = time.strftime('%Y%m%d_%H%M%S')
     base_name = f'{timestamp}_exp{exposure}_gain{gain}'
 
-    # save raw data to npy for now 
-    frame_path = os.path.join(save_directory, base_name + '.npy')
-    np.save(frame_path, frame)
+    # save raw data to .fits file (uint16 because yes)
+    hdu = fits.PrimaryHDU(frame.astype(np.uint16))
 
     # metadata
+    hdr = hdu.header
+    hdr['TIMESTMP'] = (timestamp, 'UTC timestamp YYYYmmdd_HHMMSS')
+    hdr['EXPTIME'] = (exposure, 'Exposure time [microseconds]')
+    hdr['EXPTMS'] = (exposure / 1000, 'Exposure time [milliseconds]')
+    hdr['GAIN'] = (gain, 'Camera gain setting')
+    hdr['FRMROW'] = (frame.shape[0], 'Frame rows')
+    hdr['FRMCOL'] = (frame.shape[1], 'Frame columns')
+    hdr['FMEAN'] = (float(frame.mean()), 'Mean pixel value')
+    hdr['FMAX'] = (int(frame.max()), 'Max pixel value')
+    if frame.mean() < 5000:
+        hdr['FLAG1'] = 'SUSPECT_DARK - possible cloud or something'
+    if frame.max() >= 65000:
+        hdr['FLAG2'] = 'NEAR_SATURATED - lower target_mean or exp_max'
+
+    frame_path = os.path.join(save_directory, base_name + '.fits')
+    fits.HDUList([hdu]).writeto(frame_path, overwrite=True)
+
+    # keeping other thing I made before for now 
     meta_path = os.path.join(save_directory, base_name + '.txt')
     with open(meta_path, 'w') as f:
-        f.write(f'timestamp:   {timestamp}\n')
+        f.write(f'timestamp: {timestamp}\n')
         f.write(f'exposure_us: {exposure}\n')
         f.write(f'exposure_ms: {exposure / 1000:.2f}\n')
-        f.write(f'gain:        {gain}\n')
+        f.write(f'gain: {gain}\n')
         f.write(f'frame_shape: {frame.shape}\n')
-        f.write(f'frame_mean:  {frame.mean():.1f}\n')
-        f.write(f'frame_max:   {frame.max()}\n')
-        # flag suspect frames
+        f.write(f'frame_mean: {frame.mean():.1f}\n')
+        f.write(f'frame_max: {frame.max()}\n')
         if frame.mean() < 5000:
             f.write('flag: SUSPECT_DARK, possible cloud or something\n')
         if frame.max() >= 65000:
             f.write('flag: NEAR_SATURATED, consider lowering target_mean or exp_max\n')
-        
-    log('Saved: %s  (mean=%.0f, max=%d)' % (base_name, frame.mean(), frame.max()), log_path)
 
+    log('Saved: %s  (mean=%.0f, max=%d)' % (base_name, frame.mean(), frame.max()), log_path)
     return frame_path, meta_path
 
 # in case of cable jiggle or some reason the camera is disconnected during flight

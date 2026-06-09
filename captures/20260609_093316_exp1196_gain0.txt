@@ -1,0 +1,8 @@
+timestamp:   20260609_093316
+exposure_us: 1196
+exposure_ms: 1.20
+gain:        0
+frame_shape: (200, 5496)
+frame_mean:  42337.7
+frame_max:   65504
+flag: NEAR_SATURATED, consider lowering target_mean or exp_max
