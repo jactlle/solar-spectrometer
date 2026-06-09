@@ -1,0 +1,7 @@
+timestamp:   20260609_073904
+exposure_us: 3443
+exposure_ms: 3.44
+gain:        0
+frame_shape: (200, 5496)
+frame_mean:  38845.2
+frame_max:   48672
