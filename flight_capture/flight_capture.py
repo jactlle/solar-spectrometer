@@ -26,6 +26,10 @@ gain = 50 # for low light spectra, can be changed and mostly likely will be
 env_filename = os.path.expanduser('~/zwo/libASICamera2.so') # Need to figure out how to download ZWO_ASI_LIB 
 save_directory = os.path.expanduser('~/spectrometer/captures')
 status_filename = 'flight_status.json' # health file
+# if not env_filename:
+#     print('ZWO_ASI_LIB not set, exiting')
+#     sys.exit(1)
+asi.init(env_filename) # need this part to pass 
 
 def utc_now():
     return datetime.now(timezone.utc)
@@ -100,10 +104,6 @@ def log(message, log_path):
     with open(log_path, 'a') as f:
         f.write(line + '\n')
 
-if not env_filename:
-    print('ZWO_ASI_LIB not set, exiting')
-    sys.exit(1)
-asi.init(env_filename) # this little block is checking if the folder is there and alive (if this doesn't pass we are cooked)
 
 # camera connection check
 num_cameras = asi.get_num_cameras()
