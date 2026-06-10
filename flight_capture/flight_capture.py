@@ -4,23 +4,84 @@ import os
 import sys
 import time # time.sleep() for settling loop
 import zwoasi as asi # camera wrapper
+import json
+from datetime import datetime, timezone
+import subprocess
 import numpy as np
 from astropy.io import fits
 
 # variable definitions
 cadence = 15 # in seconds
-target_mean = 40000 # pixel target for spectra? 
-tolerance = 3000 # within 3000 of target? ok
+target_mean = 35000 # pixel target for spectra? 
+tolerance = 1000 # within 1000 of target? ok
 exposure = 100000 # starting guess
 exp_min = 1000 # minimum allowed (1 ms)
-exp_max = 10000000 # maximum allowed (10 s) may be lowered
-gain = 0 # for low light spectra, can change
+exp_max = 5000000 # maximum allowed (5 s) may be lowered
+gain = 50 # for low light spectra, can be changed and mostly likely will be
 
-# TO DO : Figure out what happens to the time when you disconnect wifi, power cycle, and reconnect wifi and figure out a solution
+# TO DO : Figure out what happens to the time when you disconnect wifi, power cycle, and reconnect wifi and figure out a solution HOW THE FUCK TO TRACK TIME
+# TO DO : find a function that relates the change of altitude with the brightness, and implement it into influencing what the target mean will be?
 
 # gathering file names
 env_filename = os.path.expanduser('~/zwo/libASICamera2.so') # Need to figure out how to download ZWO_ASI_LIB 
 save_directory = os.path.expanduser('~/spectrometer/captures')
+status_filename = 'flight_status.json' # health file
+
+def utc_now():
+    return datetime.now(timezone.utc)
+
+def utc_file_timestamp():
+    """
+    UTC timestamp for filenames
+    """
+    return utc_now().strftime('%Y%m%d_%H%M%S')
+
+def utc_iso_timestamp():
+    """
+    ISO-8601 UTC timestamp for metadata/logging
+    example: 2026-06-10T02:03:45.123Z
+    """
+    return utc_now().isoformat(timespec='milliseconds').replace('+00:00', 'Z')
+
+def clock_synchronized():
+    """
+    asks systemd/timedatectl whether the system clock is currently synchronized
+    """
+    try:
+        result = subprocess.run(
+            ['timedatectl', 'show', '-p', 'SystemClockSynchronized', '--value'],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        return result.stdout.strip().lower() == 'yes'
+    except Exception:
+        return False
+
+def get_boot_id():
+    """
+    unique ID for this boot session; changes after reboot
+    """
+    try:
+        with open('/proc/sys/kernel/random/boot_id', 'r') as f:
+            return f.read().strip()
+    except Exception:
+        return 'unknown'
+    
+def write_status_file(status_path, status_dict):
+    """
+    writes a single JSON status file atomically so it is never half-written
+    """
+    payload = dict(status_dict)
+    payload['status_written_utc'] = utc_iso_timestamp()
+
+    temp_path = status_path + '.tmp'
+    with open(temp_path, 'w') as f:
+        json.dump(payload, f, indent=2, sort_keys=True)
+        f.write('\n')
+
+    os.replace(temp_path, status_path)
+
 
 def save_control_values(filename, settings):
     filename += '.txt'
@@ -34,7 +95,7 @@ def log(message, log_path):
     prints to terminal AND appends to the flight log file so nothing is lost
     one log file per run, every event goes in it
     """
-    line = '[%s] %s' % (time.strftime('%Y%m%d_%H%M%S'), message)
+    line = '[%s] %s' % (utc_iso_timestamp(), message)
     print(line)
     with open(log_path, 'a') as f:
         f.write(line + '\n')
@@ -62,7 +123,7 @@ camera.set_control_value(asi.ASI_BANDWIDTHOVERLOAD, controls['BandWidth']['MinVa
 camera.disable_dark_subtract()
 camera.set_control_value(asi.ASI_FLIP, 0)
 
-camera.set_roi(width=camera_info['MaxWidth'], height=200, bins=1, image_type=asi.ASI_IMG_RAW16) # region of interest
+camera.set_roi(width=camera_info['MaxWidth'], height=camera_info['MaxHeight'], bins=1, image_type=asi.ASI_IMG_RAW16) # region of interest
 
 os.makedirs(save_directory, exist_ok=True)
 print('Saving capture to: %s' % save_directory)
@@ -119,26 +180,40 @@ def capture_frame(camera, exposure, gain):
 def save_frame(frame, exposure, gain, save_directory, log_path):
     os.makedirs(save_directory, exist_ok=True)
 
-    # timestamped for time during flight (idk if important)
-    timestamp = time.strftime('%Y%m%d_%H%M%S')
-    base_name = f'{timestamp}_exp{exposure}_gain{gain}'
+    timestamp_file = utc_file_timestamp()
+    timestamp_iso = utc_iso_timestamp()
+    unix_time = time.time()  
+    mono_ns = time.monotonic_ns()  
+    sync_ok = clock_synchronized()
+    boot_id = get_boot_id()  
+
+    base_name = f'{timestamp_file}_exp{exposure}_gain{gain}'
+
+    frame_mean = float(frame.mean())
+    frame_max = int(frame.max())
 
     # save raw data to .fits file (uint16 because yes)
     hdu = fits.PrimaryHDU(frame.astype(np.uint16))
 
     # metadata
     hdr = hdu.header
-    hdr['TIMESTMP'] = (timestamp, 'UTC timestamp YYYYmmdd_HHMMSS')
+    hdr['DATE-OBS'] = (timestamp_iso, 'UTC timestamp ISO-8601')
+    hdr['UTCFILE'] = (timestamp_file, 'UTC timestamp YYYYmmdd_HHMMSS')
+    hdr['TSUNIX'] = (float(unix_time), 'Best available Unix time [s]')
+    hdr['MONONS'] = (str(mono_ns), 'Monotonic ns since boot')
+    hdr['CLKSYNC'] = (int(sync_ok), '1 if system clock synchronized')
+    hdr['BOOTID'] = (boot_id, 'Linux boot session ID')
+
     hdr['EXPTIME'] = (exposure, 'Exposure time [microseconds]')
     hdr['EXPTMS'] = (exposure / 1000, 'Exposure time [milliseconds]')
     hdr['GAIN'] = (gain, 'Camera gain setting')
     hdr['FRMROW'] = (frame.shape[0], 'Frame rows')
     hdr['FRMCOL'] = (frame.shape[1], 'Frame columns')
-    hdr['FMEAN'] = (float(frame.mean()), 'Mean pixel value')
-    hdr['FMAX'] = (int(frame.max()), 'Max pixel value')
-    if frame.mean() < 5000:
+    hdr['FMEAN'] = (frame_mean, 'Mean pixel value')
+    hdr['FMAX'] = (frame_max, 'Max pixel value')
+    if frame_mean < 5000:
         hdr['FLAG1'] = 'SUSPECT_DARK - possible cloud or something'
-    if frame.max() >= 65000:
+    if frame_max >= 65000:
         hdr['FLAG2'] = 'NEAR_SATURATED - lower target_mean or exp_max'
 
     frame_path = os.path.join(save_directory, base_name + '.fits')
@@ -147,20 +222,40 @@ def save_frame(frame, exposure, gain, save_directory, log_path):
     # keeping other thing I made before for now 
     meta_path = os.path.join(save_directory, base_name + '.txt')
     with open(meta_path, 'w') as f:
-        f.write(f'timestamp: {timestamp}\n')
+        f.write(f'utc_timestamp_iso: {timestamp_iso}\n')  
+        f.write(f'utc_timestamp_file: {timestamp_file}\n')  
+        f.write(f'unix_time_s: {unix_time:.6f}\n')
+        f.write(f'monotonic_ns: {mono_ns}\n')  
+        f.write(f'clock_synchronized: {int(sync_ok)}\n')  
+        f.write(f'boot_id: {boot_id}\n')  
         f.write(f'exposure_us: {exposure}\n')
         f.write(f'exposure_ms: {exposure / 1000:.2f}\n')
         f.write(f'gain: {gain}\n')
         f.write(f'frame_shape: {frame.shape}\n')
-        f.write(f'frame_mean: {frame.mean():.1f}\n')
-        f.write(f'frame_max: {frame.max()}\n')
-        if frame.mean() < 5000:
+        f.write(f'frame_mean: {frame_mean:.1f}\n')
+        f.write(f'frame_max: {frame_max}\n')
+        if frame_mean < 5000:
             f.write('flag: SUSPECT_DARK, possible cloud or something\n')
-        if frame.max() >= 65000:
+        if frame_max >= 65000:
             f.write('flag: NEAR_SATURATED, consider lowering target_mean or exp_max\n')
 
-    log('Saved: %s  (mean=%.0f, max=%d)' % (base_name, frame.mean(), frame.max()), log_path)
-    return frame_path, meta_path
+    log('Saved: %s  (mean=%.0f, max=%d)' % (base_name, frame_mean, frame_max), log_path)
+
+    frame_stats = {
+        'utc_timestamp_iso': timestamp_iso,
+        'utc_timestamp_file': timestamp_file,
+        'unix_time_s': unix_time,
+        'monotonic_ns': mono_ns,
+        'clock_synchronized': bool(sync_ok),
+        'boot_id': boot_id,
+        'frame_mean': frame_mean,
+        'frame_max': frame_max,
+        'frame_rows': int(frame.shape[0]),
+        'frame_cols': int(frame.shape[1]),
+        'frame_path': frame_path,
+        'meta_path': meta_path
+    }
+    return frame_path, meta_path, frame_stats
 
 # in case of cable jiggle or some reason the camera is disconnected during flight
 def reconnect_camera(log_path, retries = 10, wait = 5):
@@ -183,7 +278,7 @@ def reconnect_camera(log_path, retries = 10, wait = 5):
             cam.set_control_value(asi.ASI_BANDWIDTHOVERLOAD, ctrls['BandWidth']['MinValue'])
             cam.disable_dark_subtract()
             cam.set_control_value(asi.ASI_FLIP, 0)
-            cam.set_roi(width=info['MaxWidth'], height=200, bins=1, image_type=asi.ASI_IMG_RAW16)
+            cam.set_roi(width=info['MaxWidth'], height=info['MaxHeight'], bins=1, image_type=asi.ASI_IMG_RAW16)
             log('Reconnect attempt %d/%d: camera back online' % (attempt + 1, retries), log_path)
             return cam
 
@@ -203,7 +298,8 @@ def flight_loop(camera, save_directory=save_directory, cadence=cadence):
     os.makedirs(save_directory, exist_ok=True)
 
     # one log file per run
-    log_path = os.path.join(save_directory, 'flight_log_%s.txt' % time.strftime('%Y%m%d_%H%M%S'))
+    log_path = os.path.join(save_directory, 'flight_log_%s.txt' % utc_file_timestamp())
+    status_path = os.path.join(save_directory, status_filename)
 
     log('\nFLIGHT LOOP STARTING', log_path)
     log('Cadence: %ds | Target mean: %d | Gain: %d | Saving to: %s\n'
@@ -211,8 +307,21 @@ def flight_loop(camera, save_directory=save_directory, cadence=cadence):
 
     current_exposure = exposure  # updates each cycle
     active_camera = camera
+    cycle_count = 0 
+
+    write_status_file(status_path, {
+        'state': 'starting',
+        'cycle_count': cycle_count,
+        'camera_connected': active_camera is not None,
+        'current_exposure_us': current_exposure,
+        'current_gain': gain,
+        'clock_synchronized': clock_synchronized(),
+        'boot_id': get_boot_id(),
+        'last_error': ''
+    })
 
     while True:
+        cycle_count += 1 
         cycle_start = time.time()
 
         # check for failing camera
@@ -220,23 +329,73 @@ def flight_loop(camera, save_directory=save_directory, cadence=cadence):
             active_camera = reconnect_camera(log_path)
             if active_camera is None:
                 log('Camera failed to reconnect, sleeping then trying again.', log_path)
+                write_status_file(status_path, {
+                    'state': 'camera_reconnect_failed',
+                    'cycle_count': cycle_count,
+                    'camera_connected': False,
+                    'current_exposure_us': current_exposure,
+                    'current_gain': gain,   
+                    'clock_synchronized': clock_synchronized(),
+                    'boot_id': get_boot_id(),
+                    'last_error': 'camera failed to reconnect'
+                })
                 time.sleep(cadence)
                 continue
 
         try:
             # re-settle every cycle
-            current_exposure, current_gain = settle_exposure(camera, log_path, gain=gain, exposure=current_exposure)
+            current_exposure, current_gain = settle_exposure(active_camera, log_path, gain=gain, exposure=current_exposure)
 
-            frame = capture_frame(camera, current_exposure, current_gain)
+            frame = capture_frame(active_camera, current_exposure, current_gain)
 
-            fpath, mpath = save_frame(frame, current_exposure, current_gain, save_directory, log_path)
+            fpath, mpath, frame_stats = save_frame(frame, current_exposure, current_gain, save_directory, log_path)
+
+            write_status_file(status_path, {
+                'state': 'ok',
+                'cycle_count': cycle_count,
+                'camera_connected': True,
+                'current_exposure_us': current_exposure,
+                'current_gain': current_gain,
+                'clock_synchronized': frame_stats['clock_synchronized'],
+                'boot_id': frame_stats['boot_id'],
+                'last_error': '',
+                'last_frame_utc': frame_stats['utc_timestamp_iso'],
+                'last_frame_path': frame_stats['frame_path'],
+                'last_meta_path': frame_stats['meta_path'],
+                'last_frame_mean': frame_stats['frame_mean'],
+                'last_frame_max': frame_stats['frame_max'],
+                'last_frame_shape': [frame_stats['frame_rows'], frame_stats['frame_cols']]
+            })
+
+        
 
         except (KeyboardInterrupt, SystemExit):
             log('Interrupted either by keyboard or system', log_path)
+            write_status_file(status_path, {
+                'state': 'stopped',
+                'cycle_count': cycle_count,
+                'camera_connected': active_camera is not None,
+                'current_exposure_us': current_exposure,
+                'current_gain': gain,
+                'clock_synchronized': clock_synchronized(),
+                'boot_id': get_boot_id(),
+                'last_error': ''
+            })
             break
         except Exception as e:
             # log the error but do NOT exit
             log('Error this cycle, skipping and continuing: %s' % str(e), log_path)
+            write_status_file(status_path, {
+                'state': 'cycle_error',
+                'cycle_count': cycle_count,
+                'camera_connected': False,
+                'current_exposure_us': current_exposure,
+                'current_gain': gain,
+                'clock_synchronized': clock_synchronized(),
+                'boot_id': get_boot_id(),
+                'last_error': str(e)
+            })
+            active_camera = None
 
         # sleep only the remaining cadence time — settle/capture time counts toward it
         elapsed = time.time() - cycle_start

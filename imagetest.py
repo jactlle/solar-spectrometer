@@ -2,26 +2,26 @@ import numpy as np
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-from astropy.io import fits 
+from astropy.io import fits
 
-# frame = np.load('/home/jacobt/spectrometer/captures/20260609_140235_exp18496_gain0.fits')
-
-with fits.open('/home/jacobt/spectrometer/captures/20260609_140235_exp18496_gain0.fits') as hdul:
-    frame = hdul[0].data        # numpy uint16 array
-    header = hdul[0].header     # metadata baked into the file
-
+with fits.open('/home/jacobt/spectrometer/captures/20260609_195151_exp334738_gain50.fits') as hdul:
+    frame = hdul[0].data
+    header = hdul[0].header
 
 print('Shape:', frame.shape)
 print('Mean:', frame.mean())
 print('Max:', frame.max())
-print('Exposure (us):', header['EXPTIME'])
+print('Exposure (ms):', header['EXPTIME'] / 1000)
 print('Gain:', header['GAIN'])
-print('Timestamp:', header['TIMESTMP'])
 
+vmin = np.percentile(frame, 1)
+vmax = np.percentile(frame, 99)
 
-plt.imshow(frame, cmap='gray', aspect='auto', vmin=0, vmax=65535)
-plt.colorbar()
-plt.title('Raw spectrum frame')
-plt.savefig('test_frame.png', dpi=100, bbox_inches='tight')
+plt.figure(figsize=(10, 6))
+plt.imshow(frame, cmap='gray', aspect='auto', vmin=vmin, vmax=vmax)
+plt.colorbar(label='ADU')
+plt.title(f"Raw spectrum | exp={header['EXPTIME']/1000:.1f}ms | gain={header['GAIN']}")
+plt.tight_layout()
+plt.savefig('test_frame.png', dpi=150, bbox_inches='tight')
 plt.close()
 print('Saved test_frame.png')
