@@ -4,7 +4,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from astropy.io import fits
 
-with fits.open('/home/jacobt/spectrometer/captures/20260609_195151_exp334738_gain50.fits') as hdul:
+with fits.open('/home/jacobt/spectrometer/captures/20260610_195730_exp80376_gain380.fits') as hdul:
     frame = hdul[0].data
     header = hdul[0].header
 

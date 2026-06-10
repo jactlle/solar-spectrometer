@@ -14,10 +14,10 @@ from astropy.io import fits
 cadence = 15 # in seconds
 target_mean = 35000 # pixel target for spectra? 
 tolerance = 1000 # within 1000 of target? ok
-exposure = 100000 # starting guess
+exposure = 90000 # starting guess (90 ms)
 exp_min = 1000 # minimum allowed (1 ms)
 exp_max = 5000000 # maximum allowed (5 s) may be lowered
-gain = 50 # for low light spectra, can be changed and mostly likely will be
+gain = 380 # for low light spectra, can be changed and mostly likely will be
 
 # TO DO : Figure out what happens to the time when you disconnect wifi, power cycle, and reconnect wifi and figure out a solution HOW THE FUCK TO TRACK TIME
 # TO DO : find a function that relates the change of altitude with the brightness, and implement it into influencing what the target mean will be?
@@ -86,7 +86,6 @@ def write_status_file(status_path, status_dict):
 
     os.replace(temp_path, status_path)
 
-
 def save_control_values(filename, settings):
     filename += '.txt'
     with open(filename, 'w') as f:
@@ -103,7 +102,6 @@ def log(message, log_path):
     print(line)
     with open(log_path, 'a') as f:
         f.write(line + '\n')
-
 
 # camera connection check
 num_cameras = asi.get_num_cameras()
