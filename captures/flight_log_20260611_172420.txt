@@ -1,0 +1,13 @@
+[2026-06-11T17:24:20.958Z] 
+FLIGHT LOOP STARTING
+[2026-06-11T17:24:20.958Z] Cadence: 15s | Target mean: 25000 | Gain: 380 | Saving to: /home/jacobt/spectrometer/captures
+
+[2026-06-11T17:24:22.055Z] Exposure attempt 1: exposure=90.0ms  mean=18947  target=25000
+[2026-06-11T17:24:22.444Z] Exposure attempt 2: exposure=118.8ms  mean=24607  target=25000
+[2026-06-11T17:24:22.875Z] Saved: 20260611_172422_exp118754_gain380  (mean=24668, max=44704)
+[2026-06-11T17:24:22.875Z] Cycle: 1.7s elapsed, sleeping 13.3s
+
+[2026-06-11T17:24:37.075Z] Exposure attempt 1: exposure=118.8ms  mean=24386  target=25000
+[2026-06-11T17:24:37.492Z] Saved: 20260611_172437_exp118754_gain380  (mean=24791, max=46640)
+[2026-06-11T17:24:37.493Z] Cycle: 1.3s elapsed, sleeping 13.7s
+

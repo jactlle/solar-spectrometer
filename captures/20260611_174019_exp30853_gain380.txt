@@ -1,0 +1,12 @@
+utc_timestamp_iso: 2026-06-11T17:40:19.748Z
+utc_timestamp_file: 20260611_174019
+unix_time_s: 1781199619.749038
+monotonic_ns: 200018840295189
+clock_synchronized: 0
+boot_id: 82b992ed-3e2d-44a4-b9f0-afcf3b0d8b3c
+exposure_us: 30853
+exposure_ms: 30.85
+gain: 380
+frame_shape: (1004, 3840)
+frame_mean: 23244.5
+frame_max: 39440

@@ -1,0 +1,22 @@
+[2026-06-11T18:56:23.132Z] 
+FLIGHT LOOP STARTING
+[2026-06-11T18:56:23.132Z] Cadence: 15s | Target mean: 25000 | Gain: 380 | Saving to: /home/jacobt/spectrometer/captures
+
+[2026-06-11T18:56:24.349Z] Exposure attempt 1: exposure=90.0ms mean=56787 target=25000 region=1504x1204 fullframe=3840x2160
+[2026-06-11T18:56:24.775Z] Exposure attempt 2: exposure=39.6ms mean=35426 target=25000 region=1504x1204 fullframe=3840x2160
+[2026-06-11T18:56:25.183Z] Exposure attempt 3: exposure=28.0ms mean=25409 target=25000 region=1504x1204 fullframe=3840x2160
+[2026-06-11T18:56:25.657Z] Saved: 20260611_185625_exp27960_gain380  (mean=19641, max=42528)
+[2026-06-11T18:56:25.658Z] Cycle: 2.3s elapsed, sleeping 12.7s
+
+[2026-06-11T18:56:39.253Z] Exposure attempt 1: exposure=28.0ms mean=57165 target=25000 region=1504x1204 fullframe=3840x2160
+[2026-06-11T18:56:39.644Z] Exposure attempt 2: exposure=12.2ms mean=35446 target=25000 region=1504x1204 fullframe=3840x2160
+[2026-06-11T18:56:40.013Z] Exposure attempt 3: exposure=8.6ms mean=24917 target=25000 region=1504x1204 fullframe=3840x2160
+[2026-06-11T18:56:40.483Z] Saved: 20260611_185640_exp8623_gain380  (mean=18980, max=41072)
+[2026-06-11T18:56:40.483Z] Cycle: 2.2s elapsed, sleeping 12.8s
+
+[2026-06-11T18:56:54.232Z] Exposure attempt 1: exposure=8.6ms mean=9274 target=25000 region=1504x1204 fullframe=3840x2160
+[2026-06-11T18:56:54.638Z] Exposure attempt 2: exposure=23.2ms mean=22756 target=25000 region=1504x1204 fullframe=3840x2160
+[2026-06-11T18:56:55.017Z] Exposure attempt 3: exposure=25.5ms mean=24846 target=25000 region=1504x1204 fullframe=3840x2160
+[2026-06-11T18:56:55.495Z] Saved: 20260611_185655_exp25537_gain380  (mean=19766, max=43216)
+[2026-06-11T18:56:55.495Z] Cycle: 2.2s elapsed, sleeping 12.8s
+

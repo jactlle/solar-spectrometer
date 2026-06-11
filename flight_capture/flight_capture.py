@@ -12,17 +12,20 @@ from astropy.io import fits
 
 # variable definitions
 cadence = 15 # in seconds
-target_mean = 35000 # pixel target for spectra? 
+target_mean = 25000 # pixel target for spectra? 
 tolerance = 1000 # within 1000 of target? ok
 exposure = 90000 # starting guess (90 ms)
 exp_min = 1000 # minimum allowed (1 ms)
-exp_max = 5000000 # maximum allowed (5 s) may be lowered
+exp_max = 10000000 # maximum allowed (10 s) may be lowered
 gain = 380 # for low light spectra, can be changed and mostly likely will be
 
 # TO DO : Figure out what happens to the time when you disconnect wifi, power cycle, and reconnect wifi and figure out a solution HOW THE FUCK TO TRACK TIME
 # TO DO : find a function that relates the change of altitude with the brightness, and implement it into influencing what the target mean will be?
+# need to add part that allows an image to reach a mean target count of around 3000 or so so spectra taken at high altitude is not at exposure of 100s
+# So put something where if the the exposure is above a certain time, use that time / 100 and see if it produces a good enough spectrum 
+# Done I think, need to test 
 
-# gathering file names
+# gathering file names - Edit here 
 env_filename = os.path.expanduser('~/zwo/libASICamera2.so') # Need to figure out how to download ZWO_ASI_LIB 
 save_directory = os.path.expanduser('~/spectrometer/captures')
 status_filename = 'flight_status.json' # health file
@@ -116,19 +119,19 @@ camera = asi.Camera(0)
 camera_info = camera.get_camera_property()
 controls = camera.get_controls()
 
-# camera setup
+
 camera.set_control_value(asi.ASI_BANDWIDTHOVERLOAD, controls['BandWidth']['MinValue'])
 camera.disable_dark_subtract()
 camera.set_control_value(asi.ASI_FLIP, 0)
 
 camera.set_roi(width=camera_info['MaxWidth'], height=camera_info['MaxHeight'], bins=1, image_type=asi.ASI_IMG_RAW16) # region of interest
-
+# Make the autoexposure apply to the width and height of 1504 and 1204 respectively, while capturing the entire spectrum so maxheight and width
 os.makedirs(save_directory, exist_ok=True)
 print('Saving capture to: %s' % save_directory)
 
 # important function definition for adjusting exposure and gain? when in flight
 def settle_exposure(camera, log_path, gain = gain, target_mean = target_mean, tolerance = tolerance, 
-                        exposure = exposure, exp_min = exp_min, exp_max = exp_max):
+                        exposure = exposure, exp_min = exp_min, exp_max = exp_max, roi_width = 1504, roi_height = 1204):
     """
     take image with set values and for 10 attempts, try to
     calibrate to get to desired target mean within tolerance and 
@@ -149,20 +152,30 @@ def settle_exposure(camera, log_path, gain = gain, target_mean = target_mean, to
     camera.set_image_type(asi.ASI_IMG_RAW16) 
 
     # this loop is for scaling the exposure to the target mean proportionally
-    for attempt in range(20):
+    for attempt in range(15):
         camera.set_control_value(asi.ASI_EXPOSURE, exposure, auto=False)
         frame = camera.capture()
-        mean = frame.mean()
-        log('Exposure attempt %d: exposure=%.1fms  mean=%.0f  target=%d' %
-              (attempt + 1, exposure / 1000, mean, target_mean), log_path)
+        h, w = frame.shape[:2]
+        crop_w = min(roi_width, w)
+        crop_h = min(roi_height, h)
+        x0 = (w - crop_w) // 2
+        y0 = (h - crop_h) // 2
+        x1 = x0 + crop_w
+        y1 = y0 + crop_h
+        exposure_region = frame[y0:y1, x0:x1]
+        mean = exposure_region.mean()
+        log(
+            'Exposure attempt %d: exposure=%.1fms mean=%.0f target=%d '
+            'region=%dx%d fullframe=%dx%d' %
+            (attempt + 1, exposure / 1000, mean, target_mean,
+             crop_w, crop_h, w, h),log_path)
         if abs(mean - target_mean) < tolerance:
-            break  # settled or close enough
-        # proportional scale: if mean is half the target, double exposure
-        # maybe add a scale limiter so it doesnt jump to exposure of 7k from one little dark spot
+            break
         scale = target_mean / max(mean, 1)
-        scale = max(0.25, min(scale, 4.0)) # no more than 4x jump per attempt
-        exposure = int(exposure*scale)
-        exposure = max(exp_min, min(exposure, exp_max)) # clamp to valid range
+        scale = max(0.25, min(scale, 4.0))
+        exposure = int(exposure * scale)
+        exposure = max(exp_min, min(exposure, exp_max))
+
     return exposure, gain
 
 # takes single image
@@ -193,7 +206,7 @@ def save_frame(frame, exposure, gain, save_directory, log_path):
     # save raw data to .fits file (uint16 because yes)
     hdu = fits.PrimaryHDU(frame.astype(np.uint16))
 
-    # metadata
+    # metadata - record camera temp
     hdr = hdu.header
     hdr['DATE-OBS'] = (timestamp_iso, 'UTC timestamp ISO-8601')
     hdr['UTCFILE'] = (timestamp_file, 'UTC timestamp YYYYmmdd_HHMMSS')
@@ -201,6 +214,7 @@ def save_frame(frame, exposure, gain, save_directory, log_path):
     hdr['MONONS'] = (str(mono_ns), 'Monotonic ns since boot')
     hdr['CLKSYNC'] = (int(sync_ok), '1 if system clock synchronized')
     hdr['BOOTID'] = (boot_id, 'Linux boot session ID')
+    hdr['CAMRTEMP'] = (camera.get_control_value(asi.ASI_TEMPERATURE), 'Camera temperature in Celsius')
 
     hdr['EXPTIME'] = (exposure, 'Exposure time [microseconds]')
     hdr['EXPTMS'] = (exposure / 1000, 'Exposure time [milliseconds]')
@@ -211,7 +225,7 @@ def save_frame(frame, exposure, gain, save_directory, log_path):
     hdr['FMAX'] = (frame_max, 'Max pixel value')
     if frame_mean < 5000:
         hdr['FLAG1'] = 'SUSPECT_DARK - possible cloud or something'
-    if frame_max >= 65000:
+    if frame_max >= 60000:
         hdr['FLAG2'] = 'NEAR_SATURATED - lower target_mean or exp_max'
 
     frame_path = os.path.join(save_directory, base_name + '.fits')
@@ -234,7 +248,7 @@ def save_frame(frame, exposure, gain, save_directory, log_path):
         f.write(f'frame_max: {frame_max}\n')
         if frame_mean < 5000:
             f.write('flag: SUSPECT_DARK, possible cloud or something\n')
-        if frame_max >= 65000:
+        if frame_max >= 60000:
             f.write('flag: NEAR_SATURATED, consider lowering target_mean or exp_max\n')
 
     log('Saved: %s  (mean=%.0f, max=%d)' % (base_name, frame_mean, frame_max), log_path)
