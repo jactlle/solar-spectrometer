@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 import subprocess
 import numpy as np
 from astropy.io import fits
+from gpiozero import CPUTemperature
 
 # variable definitions
 cadence = 15 # in seconds
@@ -215,6 +216,7 @@ def save_frame(frame, exposure, gain, save_directory, log_path):
     hdr['CLKSYNC'] = (int(sync_ok), '1 if system clock synchronized')
     hdr['BOOTID'] = (boot_id, 'Linux boot session ID')
     hdr['CAMRTEMP'] = (camera.get_control_value(asi.ASI_TEMPERATURE), 'Camera temperature in Celsius')
+    hdr['RSPITEMP'] = (CPUTemperature(), 'Raspberry Pi temperature in Celsius')
 
     hdr['EXPTIME'] = (exposure, 'Exposure time [microseconds]')
     hdr['EXPTMS'] = (exposure / 1000, 'Exposure time [milliseconds]')
