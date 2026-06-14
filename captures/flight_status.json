@@ -1,0 +1,11 @@
+{
+  "boot_id": "82b992ed-3e2d-44a4-b9f0-afcf3b0d8b3c",
+  "camera_connected": true,
+  "clock_synchronized": false,
+  "current_exposure_us": 10000000,
+  "current_gain": 380,
+  "cycle_count": 2,
+  "last_error": "",
+  "state": "stopped",
+  "status_written_utc": "2026-06-12T01:30:35.314Z"
+}

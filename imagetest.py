@@ -4,7 +4,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from astropy.io import fits
 
-with fits.open('/home/jacobt/spectrometer/captures/20260611_185655_exp25537_gain380.fits') as hdul:
+with fits.open('/home/jacobt/Real Atmospheric Data/raw_data/20260612_164650_exp84840_gain380.fits') as hdul:
     frame = hdul[0].data
     header = hdul[0].header
 
@@ -14,11 +14,11 @@ print('Max:', frame.max())
 print('Exposure (ms):', header['EXPTIME'] / 1000)
 print('Gain:', header['GAIN'])
 
-vmin = np.percentile(frame, 1)
-vmax = np.percentile(frame, 99)
+# vmin = np.percentile(frame, 1)
+# vmax = np.percentile(frame, 99)
 
 plt.figure(figsize=(10, 6))
-plt.imshow(frame, cmap='gray', aspect='auto', vmin=vmin, vmax=vmax)
+plt.imshow(frame, cmap='gray', aspect='auto')
 plt.colorbar(label='ADU')
 plt.title(f"Raw spectrum | exp={header['EXPTIME']/1000:.1f}ms | gain={header['GAIN']}")
 plt.tight_layout()

@@ -14,7 +14,7 @@ from gpiozero import CPUTemperature
 # variable definitions
 cadence = 15 # in seconds
 target_mean = 25000 # pixel target for spectra? 
-tolerance = 1000 # within 1000 of target? ok
+tolerance = 5000 # within 1000 of target? ok
 exposure = 90000 # starting guess (90 ms)
 exp_min = 1000 # minimum allowed (1 ms)
 exp_max = 10000000 # maximum allowed (10 s) may be lowered
@@ -33,7 +33,7 @@ status_filename = 'flight_status.json' # health file
 # if not env_filename:
 #     print('ZWO_ASI_LIB not set, exiting')
 #     sys.exit(1)
-asi.init(env_filename) # need this part to pass 
+asi.init(env_filename) # need this part to pass - k 
 
 def utc_now():
     return datetime.now(timezone.utc)
@@ -107,34 +107,34 @@ def log(message, log_path):
     with open(log_path, 'a') as f:
         f.write(line + '\n')
 
-# camera connection check
-num_cameras = asi.get_num_cameras()
-cameras_found = asi.list_cameras()
+# camera connection check - something here
+# num_cameras = asi.get_num_cameras()
+# cameras_found = asi.list_cameras()
 
-if num_cameras == 0:
-    print('No camera connected, check USB')
-    sys.exit(0)
-print('Camera found: %s' % cameras_found[0]) # checking if camera is even connected (if this doesn't pass we are cooked)
+# if num_cameras == 0:
+#     print('No camera connected, check USB')
+#     sys.exit(0) # reconnect_camera(log_path)
+# print('Camera found: %s' % cameras_found[0]) # checking if camera is even connected (if this doesn't pass we are cooked)
 
-camera = asi.Camera(0)
-camera_info = camera.get_camera_property()
-controls = camera.get_controls()
+# camera = asi.Camera(0)
+# camera_info = camera.get_camera_property()
+# controls = camera.get_controls()
 
 
-camera.set_control_value(asi.ASI_BANDWIDTHOVERLOAD, controls['BandWidth']['MinValue'])
-camera.disable_dark_subtract()
-camera.set_control_value(asi.ASI_FLIP, 0)
+# camera.set_control_value(asi.ASI_BANDWIDTHOVERLOAD, controls['BandWidth']['MinValue'])
+# camera.disable_dark_subtract()
+# camera.set_control_value(asi.ASI_FLIP, 0)
 
-camera.set_roi(width=camera_info['MaxWidth'], height=camera_info['MaxHeight'], bins=1, image_type=asi.ASI_IMG_RAW16) # region of interest
+# camera.set_roi(width=camera_info['MaxWidth'], height=camera_info['MaxHeight'], bins=1, image_type=asi.ASI_IMG_RAW16) # region of interest
 # Make the autoexposure apply to the width and height of 1504 and 1204 respectively, while capturing the entire spectrum so maxheight and width
 os.makedirs(save_directory, exist_ok=True)
-print('Saving capture to: %s' % save_directory)
+print('Saving capture to: %s' % save_directory) # k
 
 # important function definition for adjusting exposure and gain? when in flight
 def settle_exposure(camera, log_path, gain = gain, target_mean = target_mean, tolerance = tolerance, 
                         exposure = exposure, exp_min = exp_min, exp_max = exp_max, roi_width = 1504, roi_height = 1204):
     """
-    take image with set values and for 10 attempts, try to
+    take image with set values and for however many attempts, try to
     calibrate to get to desired target mean within tolerance and 
     use the exposure for the real image at that target mean
     """
@@ -153,7 +153,7 @@ def settle_exposure(camera, log_path, gain = gain, target_mean = target_mean, to
     camera.set_image_type(asi.ASI_IMG_RAW16) 
 
     # this loop is for scaling the exposure to the target mean proportionally
-    for attempt in range(15):
+    for attempt in range(5):
         camera.set_control_value(asi.ASI_EXPOSURE, exposure, auto=False)
         frame = camera.capture()
         h, w = frame.shape[:2]
@@ -189,7 +189,7 @@ def capture_frame(camera, exposure, gain):
     return frame
 
 # save raw frame and metadata for information after flight
-def save_frame(frame, exposure, gain, save_directory, log_path):
+def save_frame(frame, exposure, gain, save_directory, log_path, camera):
     os.makedirs(save_directory, exist_ok=True)
 
     timestamp_file = utc_file_timestamp()
@@ -215,8 +215,8 @@ def save_frame(frame, exposure, gain, save_directory, log_path):
     hdr['MONONS'] = (str(mono_ns), 'Monotonic ns since boot')
     hdr['CLKSYNC'] = (int(sync_ok), '1 if system clock synchronized')
     hdr['BOOTID'] = (boot_id, 'Linux boot session ID')
-    hdr['CAMRTEMP'] = (camera.get_control_value(asi.ASI_TEMPERATURE), 'Camera temperature in Celsius')
-    hdr['RSPITEMP'] = (CPUTemperature(), 'Raspberry Pi temperature in Celsius')
+    hdr['CAMRTEMP'] = (camera.get_control_value(asi.ASI_TEMPERATURE)[0]/10, 'Camera temperature in Celsius')
+    # hdr['RSPITEMP'] = (CPUTemperature().temperature, 'Raspberry Pi temperature in Celsius')
 
     hdr['EXPTIME'] = (exposure, 'Exposure time [microseconds]')
     hdr['EXPTMS'] = (exposure / 1000, 'Exposure time [milliseconds]')
@@ -322,6 +322,12 @@ def flight_loop(camera, save_directory=save_directory, cadence=cadence):
     current_exposure = exposure  # updates each cycle
     active_camera = camera
     cycle_count = 0 
+    #moved HERE
+    num_cameras = asi.get_num_cameras()
+    if num_cameras == 0:
+        log('No camera detected at STARTUP, attempting reconnection (another failure message should pop up soon)', log_path)
+    else:
+        log('Camera detected!: %s' % asi.list_cameras()[0], log_path)
 
     write_status_file(status_path, {
         'state': 'starting',
@@ -362,7 +368,7 @@ def flight_loop(camera, save_directory=save_directory, cadence=cadence):
 
             frame = capture_frame(active_camera, current_exposure, current_gain)
 
-            fpath, mpath, frame_stats = save_frame(frame, current_exposure, current_gain, save_directory, log_path)
+            fpath, mpath, frame_stats = save_frame(frame, current_exposure, current_gain, save_directory, log_path, active_camera)
 
             write_status_file(status_path, {
                 'state': 'ok',
@@ -417,7 +423,7 @@ def flight_loop(camera, save_directory=save_directory, cadence=cadence):
         log('Cycle: %.1fs elapsed, sleeping %.1fs\n' % (elapsed, sleep_time), log_path)
         time.sleep(sleep_time)
 
-# test for functions
-flight_loop(camera)
+# run the code
+flight_loop(None)
 
-camera.close()
+# camera.close()

@@ -1,0 +1,13 @@
+utc_timestamp_iso: 2026-06-12T01:30:29.880Z
+utc_timestamp_file: 20260612_013029
+unix_time_s: 1781227829.880867
+monotonic_ns: 225862335501201
+clock_synchronized: 0
+boot_id: 82b992ed-3e2d-44a4-b9f0-afcf3b0d8b3c
+exposure_us: 10000000
+exposure_ms: 10000.00
+gain: 380
+frame_shape: (2160, 3840)
+frame_mean: 15455.1
+frame_max: 65520
+flag: NEAR_SATURATED, consider lowering target_mean or exp_max

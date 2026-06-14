@@ -1,0 +1,14 @@
+[2026-06-12T01:28:42.684Z] 
+FLIGHT LOOP STARTING
+[2026-06-12T01:28:42.684Z] Cadence: 15s | Target mean: 25000 | Gain: 380 | Saving to: /home/jacobt/spectrometer/captures
+
+[2026-06-12T01:28:43.875Z] Exposure attempt 1: exposure=90.0ms mean=1389 target=25000 region=1504x1204 fullframe=3840x2160
+[2026-06-12T01:28:44.597Z] Exposure attempt 2: exposure=360.0ms mean=1649 target=25000 region=1504x1204 fullframe=3840x2160
+[2026-06-12T01:28:46.453Z] Exposure attempt 3: exposure=1440.0ms mean=2663 target=25000 region=1504x1204 fullframe=3840x2160
+[2026-06-12T01:28:52.626Z] Exposure attempt 4: exposure=5760.0ms mean=6750 target=25000 region=1504x1204 fullframe=3840x2160
+[2026-06-12T01:29:03.027Z] Exposure attempt 5: exposure=10000.0ms mean=10995 target=25000 region=1504x1204 fullframe=3840x2160
+[2026-06-12T01:29:13.668Z] Error this cycle, skipping and continuing: Unable to load any default pin factory!
+[2026-06-12T01:29:13.686Z] Cycle: 30.8s elapsed, sleeping 0.0s
+
+[2026-06-12T01:29:14.138Z] Reconnect attempt 1/10: camera back online
+[2026-06-12T01:29:19.520Z] Interrupted either by keyboard or system
