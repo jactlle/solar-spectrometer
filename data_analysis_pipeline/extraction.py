@@ -15,14 +15,14 @@ def extract_1d(filepath):
 
 # filters cosmic rays / hot pixels before collapse, goes column by column
 def sigma_clip_frame(roi, sigma=3.0, iterations=2):
-    masked = ma.array(roi, mask=np.zeros_like(roi, dtype=bool))
+    masked = ma.array(roi, mask=np.zeros_like(roi, dtype=bool)) # marks all pixels as good initially
 
     for _ in range(iterations):
-        col_median = ma.median(masked, axis=0, keepdims=True)
+        col_median = ma.median(masked, axis=0, keepdims=True) # For each column, computes median and standard dev, ignoring masked pixels (ma), 
         col_std = ma.std(masked, axis=0,keepdims=True)
 
-        outliers = np.abs(masked - col_median) > sigma*col_std
-        masked = ma.array(roi, mask=masked.mask | outliers.filled(False))
+        outliers = np.abs(masked - col_median) > sigma*col_std # essentially asking if a pixel is more than 3 std dev's away from the median, if yes, then outlier
+        masked = ma.array(roi, mask=masked.mask | outliers.filled(False)) # 
 
     n_masked = masked.mask.sum()
     if n_masked > 0:
@@ -51,7 +51,7 @@ def preview_spectrum(filepath=None, spectrum=None):
 
     # marking approximate locations of halpha and o2
     halpha_approx = 1100 # both these values came from guessing until it worked
-    o2_approx = 2125
+    o2_approx = 2115
 
     ax.axvline(halpha_approx, color="red", linestyle="--", alpha=0.6, label=f"H-alpha approximation line")
     ax.axvline(o2_approx, color="orange", linestyle="--", alpha=0.6, label=f"O2 approximation line")

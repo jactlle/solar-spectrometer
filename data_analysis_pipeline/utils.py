@@ -146,3 +146,4 @@ def mark_processed(filepath):
     config.cache.mkdir(parents=True, exist_ok=True)
     with open(config.processed_log, "a") as f:
         f.write(os.path.basename(filepath) + "\n")
+

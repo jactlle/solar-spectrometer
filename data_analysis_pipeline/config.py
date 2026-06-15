@@ -23,7 +23,9 @@ date_obs = "DATE-OBS"
 
 # reference lines wavelength (in angstroms)
 halpha = 6562.8
-oxygen_2 = 6867.0 # i think
+oxygen_2 = 6867 # i think
+halpha_approx_px = 1100
+o2_approx_px = 2125
 
 searchline = 80 # search window for fitting line on reference frame
 
