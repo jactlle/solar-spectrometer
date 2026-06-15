@@ -25,9 +25,9 @@ date_obs = "DATE-OBS"
 halpha = 6562.8
 oxygen_2 = 6867 # i think
 halpha_approx_px = 1100
-o2_approx_px = 2125
+o2_approx_px = 2115
 
-searchline = 80 # search window for fitting line on reference frame
+searchline = 10 # search window for fitting line on reference frame
 
 # equivalent width stuff
 halpha_halfwidth = 8.0 # measure 8 angstroms to either side of centered line 

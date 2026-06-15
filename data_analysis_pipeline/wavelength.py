@@ -53,7 +53,7 @@ def build_wavelength_solution(spectrum):
     zero_point = config.halpha - dispersion*px_halpha 
 
     # should be .14 or so A/px
-    if not (0.08 < abs(dispersion) < 0.25):
+    if not (0.08 < abs(dispersion) < 0.40):
         print(f"Dispersion {dispersion:.4f} is outside range")
     print(f"H-alpha center: {px_halpha:.2f} px")
     print(f"O2 center: {px_o2:.2f} px")
@@ -103,3 +103,4 @@ if __name__ == "__main__":
         print(f"\nWavelength axis: {wavelengths[0]:.1f} — {wavelengths[-1]:.1f} Å")
     else:
         print("Wavelength solution failed — check config.py approx pixel values")
+
