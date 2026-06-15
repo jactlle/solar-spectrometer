@@ -12,13 +12,13 @@ pickle_cash = cache / "SpectraCache.pkl" # stores extracted spectra and pixel sh
 processed_log = cache / "processed_files.txt" # frames listed in here are skipped on re-run's
 
 # trace. dispersion axis is VERTICAL (y = wavelength), spatial axis is HORIZONTAL (x)
-x_start = 50 # first column to include
-x_width = 780 # how many columns to sum: tuneable
-y_start = 0 # first usable row
-y_height = 2100 # crop before black bar on bottom: tuneable
+x_start = 300 # first usable row
+x_width = 3500 # how many columns to sum
+y_start = 50 # first column to include 
+y_height = 1300 # crop before black bar on bottom
 
 # flight timing stuff
-balloon_pop_time = "2025-06-14T16:50:56"
+balloon_pop_time = "2026-06-12T16:50:56"
 date_obs = "DATE-OBS"
 
 # reference lines wavelength (in angstroms)
@@ -27,7 +27,7 @@ oxygen_2 = 6867.0 # i think
 
 searchline = 80 # search window for fitting line on reference frame
 
-# equivalent width: all tuneable
+# equivalent width stuff
 halpha_halfwidth = 8.0 # measure 8 angstroms to either side of centered line 
 halpha_cont_offset = 20.0 # gap between lines edge and the start of the continuum
 halpha_cont_width = 15.0 # width of each continuum sample region
