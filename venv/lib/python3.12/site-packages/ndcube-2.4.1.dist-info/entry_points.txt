@@ -1,0 +1,5 @@
+[asdf.extensions]
+ndcube = ndcube.asdf.entry_points:get_extensions
+
+[asdf.resource_mappings]
+ndcube = ndcube.asdf.entry_points:get_resource_mappings

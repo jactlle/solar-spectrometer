@@ -65,5 +65,5 @@ def preview_spectrum(filepath=None, spectrum=None):
     print("Saved preview_spectrum.png")
 
 
-spectrum = extract_1d("/home/jacobt/Real Atmospheric Data/raw_data/20260612_171513_exp70390_gain380.fits")
-preview_spectrum(spectrum=spectrum)
+# spectrum = extract_1d("/home/jacobt/Real Atmospheric Data/raw_data/20260612_161633_exp123501_gain380.fits")
+# preview_spectrum(spectrum=spectrum)
